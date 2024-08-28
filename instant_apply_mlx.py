@@ -18,17 +18,13 @@ def main() -> None:
         description="Instant Apply, from https://www.cursor.com/blog/instant-apply"
     )
     _ = parser.add_argument(
-        "model", type=str, help="Example: mlx-community/Meta-Llama-3.1-8B-Instruct-8bit"
+        "model", type=str, help="Example: mlx-community/Meta-Llama-3.1-8B-8bit"
     )
     _ = parser.add_argument("target", type=str, help="Example: sample_target.py")
     _ = parser.add_argument("edit", type=str, help="Example: sample_edit.py")
-    _ = parser.add_argument("--instruct", action="store_true")
     _ = parser.add_argument("--speculation-lookahead", type=int, default=64)
     _ = parser.add_argument("--max-tokens", type=int, default=4096)
     args = parser.parse_args()
-
-    if not args.instruct:
-        raise NotImplementedError("Only --instruct is currently supported")
 
     model, tokenizer = mlx_lm.load(args.model)
     with open(args.target) as target_file, open(args.edit) as edit_file:
@@ -37,8 +33,8 @@ def main() -> None:
     target_edit_dist = list(range(len(target_tokens) + 1))
     edit_edit_dist = list(range(len(edit_tokens) + 1))
 
-    prompt = mx.array(
-        tokenizer.apply_chat_template(
+    try:  # instruct model
+        prompt = tokenizer.apply_chat_template(
             [
                 {
                     "role": "user",
@@ -48,7 +44,11 @@ def main() -> None:
             tokenize=True,
             add_generation_prompt=True,
         )
-    )[None]
+    except ValueError:  # base model
+        prompt = tokenizer.encode(
+            f"The original source code was:\n```\n{target}\n```\nAfter applying the following edit:\n```\n{edit}\n```\nthe new code was the following, which differs from the original code where indicated by the edit:"
+        )
+    prompt = mx.array(prompt)[None]
     prompt_len = prompt.shape[1]
     cache = create_cache(model)
     detokenizer = tokenizer.detokenizer
