@@ -41,3 +41,5 @@ else:
         )
         draft = target_tokens[target_idx + 1 :]
 ```
+
+This generally mispredicts only once per hunk, which enables turning up the speculative lookahead to the point of FLOPS saturation.
